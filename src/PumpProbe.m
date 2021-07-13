@@ -826,7 +826,6 @@ classdef PumpProbe < matlab.apps.AppBase
             % Plotting
             if strcmp(app.PlotDropDown.Value, 'Probe Voltage Data')
                 app.FitPlot = plot(app.FitAxes, data(2,:), data(1,:), '.','MarkerSize',6,'LineWidth',0.5,'Color',[0.4 0.1 1]);
-%                 disp(app.pvdLimits(idx, 1))
                 set(app.rangeLine, 'Position', [-50, 0; 50, 0]);
                 set(app.FitAxes, 'XLim', [-50 50]);
                 set(app.rangeAxes, 'XLim', [-50,50], 'XTick', -50:10:50);
@@ -851,7 +850,7 @@ classdef PumpProbe < matlab.apps.AppBase
         % Button pushed function: ImportButton
         function ImportButtonPushed(app, ~)
             [file, path] = uigetfile({'*.csv';'*.txt'},'Select Data');
-            drawnow; figure(app.UIFigure);
+            figure(app.UIFigure);
             if file ~= 0
                 app.DataSelect.Items{end+1} = file;
                 fileData = readmatrix(fullfile(path, file));
@@ -871,12 +870,14 @@ classdef PumpProbe < matlab.apps.AppBase
 
             if ~app.GenerateExportFilesCheckBox.Value
                 [file, path] = uiputfile('*.csv');
+                figure(app.UIFigure);
                 path = fullfile(path, 'fits');
                 fname = file(1:end-4);
             else
                 idx = app.DataSelect.Value{3};
                 fname = app.DataSelect.Items{idx};
                 fname = fname(1:end-4);
+                idx = app.DataSelect.Value{3};
                 path = fullfile(app.DataSelect.Value{4}, fullfile('fits', app.FitsTable.Data{app.currentFit, 1}));
             end
 
@@ -1034,10 +1035,8 @@ classdef PumpProbe < matlab.apps.AppBase
         function RemoveFitButtonPushed(app, ~)
             if app.currentFit <= size(app.FitsTable.Data,1)
                app.FitsTable.Data(app.currentFit, :) = [];
-               disp(app.fits)
                app.fits{app.currentFit} = [];
                app.fits = app.fits(~cellfun(@isempty, app.fits));
-               disp(app.fits)
             else
                app.FitResults.Value = "Select a fit to remove."; 
             end
@@ -1045,7 +1044,7 @@ classdef PumpProbe < matlab.apps.AppBase
 
         function FitsTableCellSelection(app, event)
             app.selectedCell = event.Indices;
-            disp(app.selectedCell)
+            app.FitsTable.ColumnEditable = [true false false false false false];
             row = app.selectedCell(1);
             if row ~= app.currentFit
                 removeStyle(app.FitsTable);
@@ -1096,9 +1095,6 @@ classdef PumpProbe < matlab.apps.AppBase
             tau = app.DataSelect.Value{2};
             flippedData = - data(1,:);
             flippedTau = - tau(1,:);
-            if min(flippedTau) < 0
-                flippedTau = flippedTau + abs(min(flippedTau)) + 1e-6;
-            end
             data = [flippedData; data(2,:)];
             tau = [flippedTau; tau(2,:)];
             app.DataSelect.ItemsData{index} = {data, tau, index};
@@ -1112,7 +1108,6 @@ classdef PumpProbe < matlab.apps.AppBase
 
         % Button pushed function: ResetViewButton
         function ResetViewButtonPushed(app, ~)
-%             data = get(app.FitPlot, 'YData');
             deltat = get(app.FitPlot, 'XData');
             idx = app.DataSelect.Value{3};
             set(app.FitAxes, 'XLim', [deltat(1) deltat(end)]);
@@ -1143,6 +1138,7 @@ classdef PumpProbe < matlab.apps.AppBase
         function SaveDataButtonPushed(app, ~)
             if ~app.AutomaticExportCheckBox.Value
                 [file, path] = uiputfile('*.csv');
+                figure(app.UIFigure);
                 if file
                     writematrix([app.currentData; app.deltaT], fullfile(path, file)); % save data to csv file.
                 end
@@ -1155,7 +1151,7 @@ classdef PumpProbe < matlab.apps.AppBase
                     writematrix([app.currentData; app.deltaT], fullfile(path, append(app.fileName, '.csv')));
                 else
                     path = uigetdir();
-                    drawnow; figure(app.UIFigure);
+                    figure(app.UIFigure);
                     if ~isfolder(path)
                         mkdir(path)
                     end
@@ -1257,7 +1253,7 @@ classdef PumpProbe < matlab.apps.AppBase
         % Button pushed function: EditDefaultPathButton
         function EditDefaultPathButtonPushed(app, ~)
             app.exportPath = uigetdir();
-            drawnow; figure(app.UIFigure);
+            figure(app.UIFigure);
         end
 
         % Value changed function: ReflectionLineSwitch
@@ -1559,7 +1555,7 @@ classdef PumpProbe < matlab.apps.AppBase
 
             % Create Option3CheckBox
             app.Option3CheckBox = uicheckbox(app.OptionsPanel);
-            app.Option3CheckBox.Text = 'Option 3';
+            app.Option3CheckBox.Text = 'Overlay Plots';
             app.Option3CheckBox.Position = [14 104 67 22];
 
             % Create Option4CheckBox
@@ -1753,7 +1749,7 @@ classdef PumpProbe < matlab.apps.AppBase
             app.FitsTable.RowName = {};
             app.FitsTable.RowStriping = 'off';
             app.FitsTable.ColumnSortable = [true true true true true true];
-            app.FitsTable.ColumnEditable = [false false false false false false];
+            app.FitsTable.ColumnEditable = [true false false false false false];
             app.FitsTable.Position = [12 15 547 154];
 
             % Create AxesControlsPanel
