@@ -304,7 +304,7 @@ classdef PumpProbe < matlab.apps.AppBase
                 set(app.SignalAxes, "XLim", [deltat(1) deltat(end)]);
             end
             hold(app.SignalAxes, 'off');
-            beep
+            % beep
         end
         %------------------------------------------------------------------------------------------------
         
@@ -472,8 +472,6 @@ classdef PumpProbe < matlab.apps.AppBase
             
             header= [sName 'DATA:ARBitrary ' name ', #' num2str(length(arbBytes)) arbBytes]; %create header
             binblockBytes = typecast(arb, 'uint8');  %convert datapoints to binary before sending
-            h = fopen('test.txt', 'w');
-            fwrite(h, [header binblockBytes]);
             fwrite(v, [header binblockBytes], 'uint8'); %combine header and datapoints then send to instrument
             fprintf(v, '*WAI');   %Make sure no other commands are exectued until arb is done downloading
 
@@ -710,6 +708,8 @@ classdef PumpProbe < matlab.apps.AppBase
 
             % Create the 1D axes
             drawAxesLimits(app);
+
+            app.exportPath = pwd;
         end
 
         % Button pushed function: AquireDataButton
@@ -763,6 +763,8 @@ classdef PumpProbe < matlab.apps.AppBase
                 app.DataSelect.Items{end+1} = app.fileName;
                 data = [app.currentData; app.deltaT];
                 tau = getTimeConstant(app, data);
+                app.pvdLimits(end+1, :) = [data(2,1) data(2, end)];
+                app.fdLimits(end+1, :) = [0 tau(2, end)];
                 app.DataSelect.ItemsData{end+1} = {data; tau; length(app.DataSelect.Items)};
             else
                 Log(app, 'Collecting Multiple Data');
@@ -786,12 +788,12 @@ classdef PumpProbe < matlab.apps.AppBase
                     Log(app, 'Setting Lock-in to modulation frequency');
                     modulateLockIn(app, app.AWG, app.lockInFreq);
                     Log(app, 'Running Pump-Probe');
-                    tic
                     [app.currentData{i}, app.deltaT{i}] = runPumpProbe(app, app.AWG, app.LockIn, app.samples, prS);
-                    toc
                     app.DataSelect.Items{end+1} = app.Configurations.Items{i};
                     data = [app.currentData{i}; app.deltaT{i}];
                     tau = getTimeConstant(app, data);
+                    app.pvdLimits(end+1, :) = [data(2,1) data(2, end)];
+                    app.fdLimits(end+1, :) = [0 tau(2, end)];
                     app.DataSelect.ItemsData{end+1} = {data; tau; length(app.DataSelect.Items)};
                 end
             end
@@ -1144,17 +1146,18 @@ classdef PumpProbe < matlab.apps.AppBase
                 end
             else
                 if ~app.AquireMultipleCheckBox.Value
-                    path = fullfile(pwd, app.fileName);
+                    path = fullfile(app.exportPath, app.fileName);
                     if ~isfolder(path)
                         mkdir(path)
                     end
                     writematrix([app.currentData; app.deltaT], fullfile(path, append(app.fileName, '.csv')));
                 else
-                    path = uigetdir();
+                    % path = uigetdir();
+                    path = fullfile(app.exportPath, app.fileName);
                     figure(app.UIFigure);
-                    if ~isfolder(path)
-                        mkdir(path)
-                    end
+                    % if ~isfolder(path)
+                    %     mkdir(path)
+                    % end
                     for i = 1:length(app.currentData)
                         p = fullfile(path, app.Configurations.Items{i});
                         try
