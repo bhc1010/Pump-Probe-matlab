@@ -1,7 +1,7 @@
 %% Lock-in setup
 % establish tcpip connection
 
-IP = '169.254.11.17';  % IP address for lockin
+IP = '169.254.11.18';  % IP address for lockin
 
 t = tcpip(IP,50000);
 
