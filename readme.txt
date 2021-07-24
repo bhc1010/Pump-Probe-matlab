@@ -1,3 +1,6 @@
-# All Electronic Pump-Probe Spectroscopy
+# All Electronic Pump-Probe Spectroscopy -- Integrated in MATLAB.
 
--- Integrated in MATLAB.
+Dependencies: 
+  - Matlab 2020b
+  - Instrument Control Toolbox
+  - Curve Fitting Toolbox
