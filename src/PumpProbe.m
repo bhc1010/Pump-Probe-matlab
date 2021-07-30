@@ -132,7 +132,9 @@ classdef PumpProbe < matlab.apps.AppBase
         probeAmplitude
         pumpEdge      
         pumpWidth     
-        pumpAmplitude 
+        pumpAmplitude
+        startWidth
+        endWidth
         lockInFreq    
         samples
         currentFit
@@ -251,8 +253,26 @@ classdef PumpProbe < matlab.apps.AppBase
             pause(4);
         end
         
-        % Run the pump-probe algorithm
-        function [data, deltat] = runPumpProbe(app, v, t, nbs, probeSpan)
+        function setLIPlot(app)
+            cla(app.SignalAxes, 'reset'); % reset Signal plot
+            if ~app.DisablePlottingCheckBox.Value
+                app.SignalPlot = plot(app.SignalAxes, deltat(1), data(1),'.-','MarkerSize',13,'LineWidth',0.5,'XDataSource','deltat','YDataSource','data','Color',[0.4 0.1 1]);
+                grid(app.SignalAxes, 'on');
+            end
+        end
+
+        function x = parseLI(app)
+            fprintf(t, 'X.'); % read value from Lock-in
+            val = fscanf(t);
+            for k = ['c', '#', '"']
+                test = strsplit(val, k);
+                n = max(size(test));
+                val = test{n};
+            end
+            x = sscanf(val,'%f'); % correctly converts string to fp number
+        end
+
+        function [data, deltat] = modulatePhase(app, v, t, nbs, probeSpan)
             prange = 180;
             deltaRange = linspace(-prange,prange,nbs); % define the angle through which to sweep
             inDwell=2; % inital dwell to clear lockin buffer
@@ -264,35 +284,22 @@ classdef PumpProbe < matlab.apps.AppBase
             
             fprintf(t, 'AQN'); % auto-phase
             pause(0.2)
-            
-            %---------------------------------------------
+
             % Data acquisition
-            %---------------------------------------------
-            cla(app.SignalAxes, 'reset'); % reset Signal plot
-            data=zeros(1,nbs); % initialize values
+            setLIPlot(app);
+            data=zeros(1,nbs);
             deltat=zeros(1,nbs);
-            if ~app.DisablePlottingCheckBox.Value
-                app.SignalPlot = plot(app.SignalAxes, deltat(1), data(1),'.-','MarkerSize',13,'LineWidth',0.5,'XDataSource','deltat','YDataSource','data','Color',[0.4 0.1 1]);
-                grid(app.SignalAxes, 'on');
-            end
-            chars = ['c', '#', '"'];
-            for i=1:length(deltaRange)
+            for i=1:nbs
                 deltat(i) = deltaRange(i)/360*probeSpan*1e9; %time label for Plot
                 c = sprintf('SOURce1:PHASe:ARB %g',deltaRange(i));
                 fprintf(v, c);
                 fprintf(v,'*WAI');
-                fprintf(t, 'X.'); % read value from Lock-in
-                val = fscanf(t);
-                for k = chars
-                    test = strsplit(val, k);
-                    n = max(size(test));
-                    val = test{n};
-                end
-                x = sscanf(val,'%f'); % correctly converts string to fp number
+                x = parseLI(app);
                 try 
                     data(i) = x;
                 catch e 
                     Log(app, e.message);
+                    data(i) = [];
                     deltat(i) = [];
                 end
                 if ~app.DisablePlottingCheckBox.Value
@@ -304,8 +311,73 @@ classdef PumpProbe < matlab.apps.AppBase
                 set(app.SignalAxes, "XLim", [deltat(1) deltat(end)]);
             end
             hold(app.SignalAxes, 'off');
-            % beep
         end
+
+        function [data, deltaW] = modulateWidth(app, v, t, nbs, probeSpan)
+            setLIPlot(app);
+            data=zeros(1,nbs);
+            deltaW = linspace(app.startWidth, app.endWidth, nbs); % define the angle through which to sweep
+
+            % Data acquisition
+            for i=1:nbs                
+                % Send new waveform
+                prTemp = createPulse(app, deltaW(i), app.probeEdge, app.probeSpan + deltaW(end)); %creates the probe Arb
+                sendArbCh(app, prTemp, probeAmplitude, 1e9, 'wpr', 2) % channel 2
+                pause(1);
+                c = sprintf('SOURce2:PHASe:ARB %g', deltaW(i));
+                fprintf(v, c);
+                fprintf(v,'*WAI');
+                x = parseLI(app);
+                try 
+                    data(i) = x;
+                catch e 
+                    Log(app, e.message);
+                    data(i) = [];
+                    deltaW(i) = [];
+                end
+                if ~app.DisablePlottingCheckBox.Value
+                    set(app.SignalPlot, "XData", deltaW(1:i), "YData", data(1:i));
+                end
+                pause(0.00001);
+            end
+            if ~app.DisablePlottingCheckBox.Value
+                set(app.SignalAxes, "XLim", [deltaW(1) deltaW(end)]);
+            end
+            hold(app.SignalAxes, 'off');
+        end
+
+        % Run the pump-probe algorithm
+        % function [data, deltat] = runPumpProbe(app, v, t, nbs, probeSpan, modFn)
+            
+        %     %---------------------------------------------
+        %     % Data acquisition
+        %     %---------------------------------------------
+        %     setLIPlot(app);
+        %     data=zeros(1,nbs); % initialize values
+        %     deltat=zeros(1,nbs);
+        %     for i=1:nbs
+        %         deltat(i) = deltaRange(i)/360*probeSpan*1e9; %time label for Plot
+        %         c = sprintf('SOURce1:PHASe:ARB %g',deltaRange(i));
+        %         fprintf(v, c);
+        %         fprintf(v,'*WAI');
+        %         x = parseLI(app);
+        %         try 
+        %             data(i) = x;
+        %         catch e 
+        %             Log(app, e.message);
+        %             deltat(i) = [];
+        %         end
+        %         if ~app.DisablePlottingCheckBox.Value
+        %             set(app.SignalPlot, "XData", deltat(1:i), "YData", data(1:i));
+        %         end
+        %         pause(0.00001);
+        %     end
+        %     if ~app.DisablePlottingCheckBox.Value
+        %         set(app.SignalAxes, "XLim", [deltat(1) deltat(end)]);
+        %     end
+        %     hold(app.SignalAxes, 'off');
+        %     % beep
+        % end
         %------------------------------------------------------------------------------------------------
         
         % by FDN 
@@ -509,7 +581,6 @@ classdef PumpProbe < matlab.apps.AppBase
         % Ben Campbell 
         % v0.1 - 2021
         function Tau = getTimeConstant(app, data)
-%             deltat = 0;
             [ref,~] = closest(app, data(2,:), app.ReflectionPointKnob.Value);
             timeDependent = data(1, ref+1:end);
             len = length(timeDependent);
@@ -634,6 +705,42 @@ classdef PumpProbe < matlab.apps.AppBase
             name = convertStringsToChars('pp-A' + string(ppA) + '-E' + string(ppE) + '-W' + string(ppW) + '-pr-A' + string(prA) + '-E' + string(prE) + '-W' + string(prW) + '-S' + string(prS));
         end
 
+        function saveLockInData(app)
+            if ~app.AutomaticExportCheckBox.Value
+                [file, path] = uiputfile('*.csv');
+                figure(app.UIFigure);
+                if file
+                    writematrix([app.currentData; app.deltaT], fullfile(path, file)); % save data to csv file.
+                end
+            else
+                if ~app.AquireMultipleCheckBox.Value
+                    myPath = fullfile(app.exportPath, app.fileName);
+                    if ~isfolder(path)
+                        mkdir(path)
+                    end
+                    myPath = fullfile(myPath, append(app.fileName, '.csv'))
+                    writematrix([app.currentData; app.deltaT], myPath);
+                    Log(app, append("Data saved to ", myPath));
+                else
+                    % path = uigetdir();
+                    path = fullfile(app.exportPath, app.fileName);
+                    figure(app.UIFigure);
+                    % if ~isfolder(path)
+                    %     mkdir(path)
+                    % end
+                    for i = 1:length(app.currentData)
+                        p = fullfile(path, app.Configurations.Items{i});
+                        try
+                            mkdir(p);
+                        catch e 
+                            msgbox(e.message);
+                        end
+                        writematrix([app.currentData{i}; app.deltaT{i}], fullfile(p, append(app.Configurations.Items{i}, '.csv')));
+                    end
+                end
+            end
+        end
+
         function Log(app, message)
             if isempty(app.PumpProbeLog.Value{1})
                line = '';
@@ -698,6 +805,8 @@ classdef PumpProbe < matlab.apps.AppBase
             app.pumpEdge       = 0;
             app.pumpWidth      = 0;
             app.pumpAmplitude  = 0;
+            app.startWidth     = 10e-9;
+            app.endWidth       = 50e-9;
             app.lockInFreq     = 0;
             app.samples        = 0;     
 
@@ -712,6 +821,7 @@ classdef PumpProbe < matlab.apps.AppBase
             app.exportPath = pwd;
         end
 
+        % TODO: ADD AUTOSAVE TO AUTOMATIC EXPORT OPTION
         % Button pushed function: AquireDataButton
         function AquireDataButtonPushed(app, ~)
             app.AquireDataButton.Enable = false;
@@ -756,9 +866,9 @@ classdef PumpProbe < matlab.apps.AppBase
                     modulateLockIn(app, app.AWG, app.lockInFreq);
                 end
                 Log(app, 'Running Pump-Probe')
-                tic
+                % tic
                 [app.currentData, app.deltaT] = runPumpProbe(app, app.AWG, app.LockIn, app.samples, app.probeSpan);
-                toc
+                % toc
                 app.fileName = getConfigName(app);
                 app.DataSelect.Items{end+1} = app.fileName;
                 data = [app.currentData; app.deltaT];
@@ -766,6 +876,9 @@ classdef PumpProbe < matlab.apps.AppBase
                 app.pvdLimits(end+1, :) = [data(2,1) data(2, end)];
                 app.fdLimits(end+1, :) = [0 tau(2, end)];
                 app.DataSelect.ItemsData{end+1} = {data; tau; length(app.DataSelect.Items)};
+                if app.AutomaticExportCheckBox 
+                    saveLockInData(app);
+                end
             else
                 Log(app, 'Collecting Multiple Data');
                 app.currentData = {};
@@ -1136,39 +1249,10 @@ classdef PumpProbe < matlab.apps.AppBase
             end
         end
 
+        % TODO: ADD TEXT FILE TO SAVE WITH PUMPPROBE INFO AND SETTINGS
         % Button pushed function: SaveDataButton
         function SaveDataButtonPushed(app, ~)
-            if ~app.AutomaticExportCheckBox.Value
-                [file, path] = uiputfile('*.csv');
-                figure(app.UIFigure);
-                if file
-                    writematrix([app.currentData; app.deltaT], fullfile(path, file)); % save data to csv file.
-                end
-            else
-                if ~app.AquireMultipleCheckBox.Value
-                    path = fullfile(app.exportPath, app.fileName);
-                    if ~isfolder(path)
-                        mkdir(path)
-                    end
-                    writematrix([app.currentData; app.deltaT], fullfile(path, append(app.fileName, '.csv')));
-                else
-                    % path = uigetdir();
-                    path = fullfile(app.exportPath, app.fileName);
-                    figure(app.UIFigure);
-                    % if ~isfolder(path)
-                    %     mkdir(path)
-                    % end
-                    for i = 1:length(app.currentData)
-                        p = fullfile(path, app.Configurations.Items{i});
-                        try
-                            mkdir(p);
-                        catch e 
-                            msgbox(e.message);
-                        end
-                        writematrix([app.currentData{i}; app.deltaT{i}], fullfile(p, append(app.Configurations.Items{i}, '.csv')));
-                    end
-                end
-            end
+            saveLockInData(app);
         end
 
         % Value changed function: AquireMultipleCheckBox
