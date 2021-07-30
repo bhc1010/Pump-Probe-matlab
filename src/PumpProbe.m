@@ -876,9 +876,6 @@ classdef PumpProbe < matlab.apps.AppBase
                 app.pvdLimits(end+1, :) = [data(2,1) data(2, end)];
                 app.fdLimits(end+1, :) = [0 tau(2, end)];
                 app.DataSelect.ItemsData{end+1} = {data; tau; length(app.DataSelect.Items)};
-                if app.AutomaticExportCheckBox 
-                    saveLockInData(app);
-                end
             else
                 Log(app, 'Collecting Multiple Data');
                 app.currentData = {};
@@ -909,6 +906,9 @@ classdef PumpProbe < matlab.apps.AppBase
                     app.fdLimits(end+1, :) = [0 tau(2, end)];
                     app.DataSelect.ItemsData{end+1} = {data; tau; length(app.DataSelect.Items)};
                 end
+            end
+            if app.AutomaticExportCheckBox 
+                saveLockInData(app);
             end
             app.AquireDataButton.Enable = true;
             if app.connected
