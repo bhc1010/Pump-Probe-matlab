@@ -49,10 +49,10 @@ classdef PumpProbe < matlab.apps.AppBase
         AutomaticExportCheckBox         matlab.ui.control.CheckBox
         DisablePlottingCheckBox         matlab.ui.control.CheckBox
         EditDefaultPathButton           matlab.ui.control.Button
-        Option3CheckBox                 matlab.ui.control.CheckBox
+        OverlayPlotsCheckBox                 matlab.ui.control.CheckBox
         Option4CheckBox                 matlab.ui.control.CheckBox
-        SettingDropDownLabel            matlab.ui.control.Label
-        SettingDropDown                 matlab.ui.control.DropDown
+        ProcedureDropDownLabel            matlab.ui.control.Label
+        ProcedureDropDown                 matlab.ui.control.DropDown
         SignalAxes                      matlab.ui.control.UIAxes
         FitDataTab                      matlab.ui.container.Tab
         AxesControlsPanel               matlab.ui.container.Panel
@@ -146,6 +146,7 @@ classdef PumpProbe < matlab.apps.AppBase
         fileName 
         exportPath
         customFunction
+        expSetting
         % Fit Options
         FitOptions
     end
@@ -253,15 +254,15 @@ classdef PumpProbe < matlab.apps.AppBase
             pause(4);
         end
         
-        function setLIPlot(app)
+        function setLIPlot(app, x, y)
             cla(app.SignalAxes, 'reset'); % reset Signal plot
             if ~app.DisablePlottingCheckBox.Value
-                app.SignalPlot = plot(app.SignalAxes, deltat(1), data(1),'.-','MarkerSize',13,'LineWidth',0.5,'XDataSource','deltat','YDataSource','data','Color',[0.4 0.1 1]);
+                app.SignalPlot = plot(app.SignalAxes, x(1), y(1),'.-','MarkerSize',13,'LineWidth',0.5,'XDataSource','deltat','YDataSource','data','Color',[0.4 0.1 1]);
                 grid(app.SignalAxes, 'on');
             end
         end
 
-        function x = parseLI(app)
+        function x = parseLI(app, t)
             fprintf(t, 'X.'); % read value from Lock-in
             val = fscanf(t);
             for k = ['c', '#', '"']
@@ -286,19 +287,19 @@ classdef PumpProbe < matlab.apps.AppBase
             pause(0.2)
 
             % Data acquisition
-            setLIPlot(app);
             data=zeros(1,nbs);
             deltat=zeros(1,nbs);
+            setLIPlot(app, deltat, data);
             for i=1:nbs
                 deltat(i) = deltaRange(i)/360*probeSpan*1e9; %time label for Plot
                 c = sprintf('SOURce1:PHASe:ARB %g',deltaRange(i));
                 fprintf(v, c);
                 fprintf(v,'*WAI');
-                x = parseLI(app);
+                x = parseLI(app, t);
                 try 
                     data(i) = x;
                 catch e 
-                    Log(app, e.message);
+                    Log(app, 'Error reading data. LockIn overloading?');
                     data(i) = [];
                     deltat(i) = [];
                 end
@@ -314,9 +315,9 @@ classdef PumpProbe < matlab.apps.AppBase
         end
 
         function [data, deltaW] = modulateWidth(app, v, t, nbs, probeSpan)
-            setLIPlot(app);
             data=zeros(1,nbs);
             deltaW = linspace(app.startWidth, app.endWidth, nbs); % define the angle through which to sweep
+            setLIPlot(app, deltaW, data);
 
             % Data acquisition
             for i=1:nbs                
@@ -347,37 +348,47 @@ classdef PumpProbe < matlab.apps.AppBase
         end
 
         % Run the pump-probe algorithm
-        % function [data, deltat] = runPumpProbe(app, v, t, nbs, probeSpan, modFn)
-            
-        %     %---------------------------------------------
-        %     % Data acquisition
-        %     %---------------------------------------------
-        %     setLIPlot(app);
-        %     data=zeros(1,nbs); % initialize values
-        %     deltat=zeros(1,nbs);
-        %     for i=1:nbs
-        %         deltat(i) = deltaRange(i)/360*probeSpan*1e9; %time label for Plot
-        %         c = sprintf('SOURce1:PHASe:ARB %g',deltaRange(i));
-        %         fprintf(v, c);
-        %         fprintf(v,'*WAI');
-        %         x = parseLI(app);
-        %         try 
-        %             data(i) = x;
-        %         catch e 
-        %             Log(app, e.message);
-        %             deltat(i) = [];
-        %         end
-        %         if ~app.DisablePlottingCheckBox.Value
-        %             set(app.SignalPlot, "XData", deltat(1:i), "YData", data(1:i));
-        %         end
-        %         pause(0.00001);
-        %     end
-        %     if ~app.DisablePlottingCheckBox.Value
-        %         set(app.SignalAxes, "XLim", [deltat(1) deltat(end)]);
-        %     end
-        %     hold(app.SignalAxes, 'off');
-        %     % beep
-        % end
+        function [data, deltat] = runPumpProbe(app, v, t, nbs, probeSpan)
+            fprintf(v, 'OUTPUT1 ON');
+            switch app.ProcedureDropDown.Value
+                case 'Sweep Phase'
+                    [data, deltat] = modulatePhase(app, v, t, nbs, probeSpan);
+                case 'Sweep DC Offset'
+                    Log(app, 'PLEASE SETUP IV')
+                case 'Sweep Pump Width'
+                    [data, deltat] = modulateWidth(app, v, t, nbs, probeSpan);
+            end
+            fprintf(v, 'OUTPUT1 OFF');
+
+            %---------------------------------------------
+            % Data acquisition
+            %---------------------------------------------
+            % setLIPlot(app);
+            % data=zeros(1,nbs); % initialize values
+            % deltat=zeros(1,nbs);
+            % for i=1:nbs
+            %     deltat(i) = deltaRange(i)/360*probeSpan*1e9; %time label for Plot
+            %     c = sprintf('SOURce1:PHASe:ARB %g',deltaRange(i));
+            %     fprintf(v, c);
+            %     fprintf(v,'*WAI');
+            %     x = parseLI(app);
+            %     try 
+            %         data(i) = x;
+            %     catch e 
+            %         Log(app, e.message);
+            %         deltat(i) = [];
+            %     end
+            %     if ~app.DisablePlottingCheckBox.Value
+            %         set(app.SignalPlot, "XData", deltat(1:i), "YData", data(1:i));
+            %     end
+            %     pause(0.00001);
+            % end
+            % if ~app.DisablePlottingCheckBox.Value
+            %     set(app.SignalAxes, "XLim", [deltat(1) deltat(end)]);
+            % end
+            % hold(app.SignalAxes, 'off');
+            % beep
+        end
         %------------------------------------------------------------------------------------------------
         
         % by FDN 
@@ -563,7 +574,7 @@ classdef PumpProbe < matlab.apps.AppBase
             fprintf(v,command); %send amplitude command
             c = strcat(sName,'VOLT:OFFSET 0');
             fprintf(v,c); % set offset to 0 V
-            fprintf(v,oN); %Enable Output for channel 1
+            % fprintf(v,oN); %Enable Output for channel 1
             
             % Read Error
             fprintf(v, 'SYST:ERR?');
@@ -642,16 +653,17 @@ classdef PumpProbe < matlab.apps.AppBase
             if ~isempty(app.rangeLine)
                 delete(app.rangeLine)
             end
+            xLim = get(app.SignalAxes, 'xlim');
             % Create the 1D axes
             app.rangeAxes = axes( ...
-            app.AxesLimitsPanel,'Color','none','YColor','none','XLim',[-50,50],'YTick',[], ...
-            'XTick',-50:10:50,'TickDir','both','TickLength',[0.03,0.035],'XMinorTick', ...
+            app.AxesLimitsPanel,'Color','none','YColor','none','XLim',[xLim(1), xLim(2)],'YTick',[], ...
+            'TickDir','both','TickLength',[0.03,0.035],'XMinorTick', ...
             'on','Units','pixels','Position',[8,32,298,0]);
             % Disable the interactivity & toolbar visibility
             disableDefaultInteractivity(app.rangeAxes);
             app.rangeAxes.Toolbar.Visible = 'off';
             % Add the line ROI
-            app.rangeLine = images.roi.Line(app.rangeAxes,'Position',[-50,0;50,0]);
+            app.rangeLine = images.roi.Line(app.rangeAxes,'Position',[xLim(1), 0; xLim(2), 0]);
             % Add a listener that will trigger a callback function titled "lMoving" when user
             % moves the ROI endpoints or the line ROI as a whole
             addlistener(app.rangeLine,'MovingROI',@(varargin)lMoving(app,app.rangeLine));
@@ -674,15 +686,17 @@ classdef PumpProbe < matlab.apps.AppBase
         end      
                 
         function result = maybeChangeWaveform(app)
+            prSpan = app.ProbeSpanEditField.Value * app.ProbeSpanScale.Value;
             prEdge = app.ProbeEdgeEditField.Value * app.ProbeEdgeScale.Value; 
             prWidth = app.ProbeWidthEditField.Value * app.ProbeWidthScale.Value;        
             prAmp = app.ProbeAmplitudeEditField.Value * app.ProbeAmplitudeScale.Value;
             ppEdge = app.PumpEdgeEditField.Value * app.PumpEdgeScale.Value;            
             ppWidth = app.PumpWidthEditField.Value * app.PumpWidthScale.Value;
             ppAmp = app.PumpAmplitudeEditField.Value * app.PumpAmplitudeScale.Value;
-            if app.probeEdge ~= prEdge || app.probeWidth ~= prWidth || app.probeAmplitude ~= prAmp || app.pumpEdge ~= ppEdge || app.pumpWidth ~= ppWidth || app.pumpAmplitude ~= ppAmp || app.changeWaveform == true
+            if app.probeSpan ~= prSpan || app.probeEdge ~= prEdge || app.probeWidth ~= prWidth || app.probeAmplitude ~= prAmp || app.pumpEdge ~= ppEdge || app.pumpWidth ~= ppWidth || app.pumpAmplitude ~= ppAmp || app.changeWaveform == true
                 result = true;
                 app.changeWaveform = false;
+                app.probeSpan = prSpan;
                 app.probeEdge = prEdge;
                 app.probeWidth = prWidth;
                 app.probeAmplitude = prAmp;
@@ -694,6 +708,7 @@ classdef PumpProbe < matlab.apps.AppBase
             end
         end
 
+        % TAG
         function name = getConfigName(app)
             ppA = app.PumpAmplitudeEditField.Value;
             ppE = app.PumpEdgeEditField.Value;
@@ -702,7 +717,7 @@ classdef PumpProbe < matlab.apps.AppBase
             prE = app.ProbeEdgeEditField.Value;
             prW = app.ProbeWidthEditField.Value;
             prS = app.ProbeSpanEditField.Value;
-            name = convertStringsToChars('pp-A' + string(ppA) + '-E' + string(ppE) + '-W' + string(ppW) + '-pr-A' + string(prA) + '-E' + string(prE) + '-W' + string(prW) + '-S' + string(prS));
+            name = convertStringsToChars('pp-A' + string(ppA) +'-E' + string(ppE) + '-W' + string(ppW) + '-pr-A' + string(prA) + '-E' + string(prE) + '-W' + string(prW) + '-S' + string(prS));
         end
 
         function saveLockInData(app)
@@ -713,6 +728,9 @@ classdef PumpProbe < matlab.apps.AppBase
                     writematrix([app.currentData; app.deltaT], fullfile(path, file)); % save data to csv file.
                 end
             else
+                t = datetime('now');
+                t.Format = 'yyyyMMddHHmm';
+                app.fileName = append(t, app.fileName)
                 if ~app.AquireMultipleCheckBox.Value
                     myPath = fullfile(app.exportPath, app.fileName);
                     if ~isfolder(path)
@@ -722,12 +740,8 @@ classdef PumpProbe < matlab.apps.AppBase
                     writematrix([app.currentData; app.deltaT], myPath);
                     Log(app, append("Data saved to ", myPath));
                 else
-                    % path = uigetdir();
                     path = fullfile(app.exportPath, app.fileName);
                     figure(app.UIFigure);
-                    % if ~isfolder(path)
-                    %     mkdir(path)
-                    % end
                     for i = 1:length(app.currentData)
                         p = fullfile(path, app.Configurations.Items{i});
                         try
@@ -797,6 +811,7 @@ classdef PumpProbe < matlab.apps.AppBase
             disableDefaultInteractivity(app.SignalAxes);
             app.connected = false;
             app.changeWaveform = true;
+            app.expSetting = {'-180','180'} 
             app.VoltageToleranceKnob.Value = 1;
             app.probeSpan      = 0;
             app.probeEdge      = 0;
@@ -821,7 +836,6 @@ classdef PumpProbe < matlab.apps.AppBase
             app.exportPath = pwd;
         end
 
-        % TODO: ADD AUTOSAVE TO AUTOMATIC EXPORT OPTION
         % Button pushed function: AquireDataButton
         function AquireDataButtonPushed(app, ~)
             app.AquireDataButton.Enable = false;
@@ -851,7 +865,7 @@ classdef PumpProbe < matlab.apps.AppBase
                 app.connected = true;
             end
             if ~app.AquireMultipleCheckBox.Value
-                app.probeSpan = app.ProbeSpanEditField.Value * app.ProbeSpanScale.Value;
+                % app.probeSpan = app.ProbeSpanEditField.Value * app.ProbeSpanScale.Value;
                 app.samples = app.SamplesEditField.Value;
                 if maybeChangeWaveform(app)
                     Log(app, 'Generating Pulse');
@@ -866,9 +880,7 @@ classdef PumpProbe < matlab.apps.AppBase
                     modulateLockIn(app, app.AWG, app.lockInFreq);
                 end
                 Log(app, 'Running Pump-Probe')
-                % tic
                 [app.currentData, app.deltaT] = runPumpProbe(app, app.AWG, app.LockIn, app.samples, app.probeSpan);
-                % toc
                 app.fileName = getConfigName(app);
                 app.DataSelect.Items{end+1} = app.fileName;
                 data = [app.currentData; app.deltaT];
@@ -907,7 +919,7 @@ classdef PumpProbe < matlab.apps.AppBase
                     app.DataSelect.ItemsData{end+1} = {data; tau; length(app.DataSelect.Items)};
                 end
             end
-            if app.AutomaticExportCheckBox 
+            if app.AutomaticExportCheckBox.Value;
                 saveLockInData(app);
             end
             app.AquireDataButton.Enable = true;
@@ -918,19 +930,25 @@ classdef PumpProbe < matlab.apps.AppBase
         end
 
         function EditSettingsButtonPushed(app, ~)
-            setting = app.SettingDropDown.Value;
-            dlgtitle = 'Experiment Settings';
+            setting = app.ProcedureDropDown.Value;
+            dlgtitle = 'Procedure Settings';
             dims = [1 35];
             switch setting 
                 case 'Sweep Phase'
                     prompt = {'Start phase:', 'End phase:'};
                     defaultIn = {'-180', '180'};
-                    newSetting = inputdlg(prompt, dlgtitle, dims, defaultIn);
-                case 'Sweep DC Offset (IV)'
+                case 'Sweep DC Offset'
                     prompt = {'Initial DC offset (mV)', 'Final DC offset (mV)'};
                     defaultIn = {'600', '700'};
-                    newSetting = inputdlg(prompt, dlgtitle, dims, defaultIn);
+                case 'Sweep Pump Width'
+                    prompt = {'Initial pump width (ns)', 'Final pump width (ns)'};
+                    defaultIn = {'10', '100'};
+                otherwise
+                    prompt = {'error'};
+                    defaultIn = {'no setting'};
             end
+            app.expSetting = inputdlg(prompt, dlgtitle, dims, defaultIn);
+            figure(app.UIFigure);
         end
 
         % Value changed function: DataSelect
@@ -941,14 +959,14 @@ classdef PumpProbe < matlab.apps.AppBase
             % Plotting
             if strcmp(app.PlotDropDown.Value, 'Probe Voltage Data')
                 app.FitPlot = plot(app.FitAxes, data(2,:), data(1,:), '.','MarkerSize',6,'LineWidth',0.5,'Color',[0.4 0.1 1]);
-                set(app.rangeLine, 'Position', [-50, 0; 50, 0]);
-                set(app.FitAxes, 'XLim', [-50 50]);
-                set(app.rangeAxes, 'XLim', [-50,50], 'XTick', -50:10:50);
+                set(app.rangeLine, 'Position', [app.fdLimits(idx, 1), 0; app.fdLimits(idx, 2), 0]);
+                set(app.FitAxes, 'XLim', [app.fdLimits(idx,1) app.fdLimits(idx, 2)]);
+                set(app.rangeAxes, 'XLim', [data(1), data(end)]);%, 'XTick', -50:10:50);
             elseif strcmp(app.PlotDropDown.Value, 'Calculated Data')
                 app.FitPlot = plot(app.FitAxes, tau(2,:), tau(1,:), '.','MarkerSize',6,'LineWidth',0.5,'Color',[0.4 0.1 1]);
                 set(app.rangeLine, 'Position', [app.fdLimits(idx, 1), 0; app.fdLimits(idx, 2), 0]);
                 set(app.FitAxes, 'XLim', [app.fdLimits(idx,1) app.fdLimits(idx, 2)]);
-                set(app.rangeAxes, 'XLim', [0,50], 'XTick', 0:10:50);
+                set(app.rangeAxes, 'XLim', [tau(1), tau(end)]);%, 'XTick', 0:10:50);
             end
             % Reflection Line
             app.ReflectionPointKnob.Value = app.reflectionPoints(idx);
@@ -1249,7 +1267,6 @@ classdef PumpProbe < matlab.apps.AppBase
             end
         end
 
-        % TODO: ADD TEXT FILE TO SAVE WITH PUMPPROBE INFO AND SETTINGS
         % Button pushed function: SaveDataButton
         function SaveDataButtonPushed(app, ~)
             saveLockInData(app);
@@ -1339,7 +1356,7 @@ classdef PumpProbe < matlab.apps.AppBase
 
         % Button pushed function: EditDefaultPathButton
         function EditDefaultPathButtonPushed(app, ~)
-            app.exportPath = uigetdir();
+            app.exportPath = uigetdir(app.exportPath);
             figure(app.UIFigure);
         end
 
@@ -1359,6 +1376,22 @@ classdef PumpProbe < matlab.apps.AppBase
                 plotFit(app);
             else
                 redrawFitAxes(app);
+            end
+        end
+
+        function ProcedureDropDownValueChanged(app, ~)
+            switch app.ProcedureDropDown.Value
+                case 'Sweep Phase'
+                    app.PumpWidthEditField.Enable = true;
+                    app.PumpWidthScale.Enable = true;
+                case 'Sweep DC Offset'
+                    app.PumpWidthEditField.Enable = true;
+                    app.PumpWidthScale.Enable = true;
+                case 'Sweep Pump Width'
+                    app.PumpWidthEditField.Enable = false;
+                    app.PumpWidthScale.Enable = false;
+                otherwise
+                    Log('Error: Procedure not setup.')
             end
         end
     end
@@ -1439,29 +1472,29 @@ classdef PumpProbe < matlab.apps.AppBase
 
             % Create ProbeAmplitudeScale
             app.ProbeAmplitudeScale = uidropdown(app.ProbePanel);
-            app.ProbeAmplitudeScale.Items = {'mV'};
-            app.ProbeAmplitudeScale.ItemsData = 0.001;
+            app.ProbeAmplitudeScale.Items = {'V', 'mV'};
+            app.ProbeAmplitudeScale.ItemsData = [1, 0.001];
             app.ProbeAmplitudeScale.Position = [201 78 51 22];
             app.ProbeAmplitudeScale.Value = 0.001;
 
             % Create ProbeEdgeScale
             app.ProbeEdgeScale = uidropdown(app.ProbePanel);
-            app.ProbeEdgeScale.Items = {'ns'};
-            app.ProbeEdgeScale.ItemsData = 1e-09;
+            app.ProbeEdgeScale.Items = {'ms', 'us', 'ns'};
+            app.ProbeEdgeScale.ItemsData = [0.001, 1e-06, 1e-09];
             app.ProbeEdgeScale.Position = [201 45 51 22];
             app.ProbeEdgeScale.Value = 1e-09;
 
             % Create ProbeWidthScale
             app.ProbeWidthScale = uidropdown(app.ProbePanel);
-            app.ProbeWidthScale.Items = {'ns'};
-            app.ProbeWidthScale.ItemsData = 1e-09;
+            app.ProbeWidthScale.Items = {'ms', 'us', 'ns'};
+            app.ProbeWidthScale.ItemsData = [0.001, 1e-06, 1e-09];
             app.ProbeWidthScale.Position = [201 12 51 22];
             app.ProbeWidthScale.Value = 1e-09;
 
             % Create ProbeSpanScale
             app.ProbeSpanScale = uidropdown(app.ProbePanel);
-            app.ProbeSpanScale.Items = {'s', 'ms', 'ns'};
-            app.ProbeSpanScale.ItemsData = [1, 1e-3, 1e-9];
+            app.ProbeSpanScale.Items = {'ms', 'us','ns'};
+            app.ProbeSpanScale.ItemsData = [1e-3, 1e-6, 1e-9];
             app.ProbeSpanScale.Position = [201 110 51 22];
             app.ProbeSpanScale.Value = 1e-9;
 
@@ -1505,22 +1538,22 @@ classdef PumpProbe < matlab.apps.AppBase
 
             % Create PumpWidthScale
             app.PumpWidthScale = uidropdown(app.PumpPanel);
-            app.PumpWidthScale.Items = {'ns'};
-            app.PumpWidthScale.ItemsData = 1e-09;
+            app.PumpWidthScale.Items = {'ms', 'us', 'ns'};
+            app.PumpWidthScale.ItemsData = [0.001, 1e-06, 1e-09];
             app.PumpWidthScale.Position = [200 19 52 22];
             app.PumpWidthScale.Value = 1e-09;
 
             % Create PumpEdgeScale
             app.PumpEdgeScale = uidropdown(app.PumpPanel);
-            app.PumpEdgeScale.Items = {'ns'};
-            app.PumpEdgeScale.ItemsData = 1e-09;
+            app.PumpEdgeScale.Items = {'ms', 'us', 'ns'};
+            app.PumpEdgeScale.ItemsData = [0.001, 1e-06, 1e-09];
             app.PumpEdgeScale.Position = [200 56 52 22];
             app.PumpEdgeScale.Value = 1e-09;
 
             % Create PumpAmplitudeScale
             app.PumpAmplitudeScale = uidropdown(app.PumpPanel);
-            app.PumpAmplitudeScale.Items = {'mV'};
-            app.PumpAmplitudeScale.ItemsData = 0.001;
+            app.PumpAmplitudeScale.Items = {'V', 'mV'};
+            app.PumpAmplitudeScale.ItemsData = [1, 0.001];
             app.PumpAmplitudeScale.Position = [200 91 52 22];
             app.PumpAmplitudeScale.Value = 0.001;
 
@@ -1640,32 +1673,33 @@ classdef PumpProbe < matlab.apps.AppBase
             app.EditDefaultPathButton.Position = [14 9 121 24];
             app.EditDefaultPathButton.Text = 'Edit Default Path';
 
-            % Create Option3CheckBox
-            app.Option3CheckBox = uicheckbox(app.OptionsPanel);
-            app.Option3CheckBox.Text = 'Overlay Plots';
-            app.Option3CheckBox.Position = [14 104 67 22];
+            % Create OverlayPlotsCheckBox
+            app.OverlayPlotsCheckBox = uicheckbox(app.OptionsPanel);
+            app.OverlayPlotsCheckBox.Text = 'Overlay Plots';
+            app.OverlayPlotsCheckBox.Position = [14 104 100 22];
 
             % Create Option4CheckBox
             app.Option4CheckBox = uicheckbox(app.OptionsPanel);
             app.Option4CheckBox.Text = 'Option 4';
             app.Option4CheckBox.Position = [14 73 67 22];
 
-            % Create SettingDropDownLabel
-            app.SettingDropDownLabel = uilabel(app.PumpProbeTab);
-            app.SettingDropDownLabel.HorizontalAlignment = 'right';
-            app.SettingDropDownLabel.Position = [46 714 46 22];
-            app.SettingDropDownLabel.Text = 'Setting:';
+            % Create ProcedureDropDownLabel
+            app.ProcedureDropDownLabel = uilabel(app.PumpProbeTab);
+            app.ProcedureDropDownLabel.HorizontalAlignment = 'right';
+            app.ProcedureDropDownLabel.Position = [46 714 64 22];
+            app.ProcedureDropDownLabel.Text = 'Procedure:';
 
-            % Create SettingDropDown
-            app.SettingDropDown = uidropdown(app.PumpProbeTab);
-            app.SettingDropDown.Items = {'Sweep Phase', 'Sweep DC Offset (IV)','Vary Amplitude', 'Vary Width', 'Vary Edge'};
-            app.SettingDropDown.Position = [97 714 146 22];
-            app.SettingDropDown.Value = 'Sweep Phase';
+            % Create ProcedureDropDown
+            app.ProcedureDropDown = uidropdown(app.PumpProbeTab);
+            app.ProcedureDropDown.ValueChangedFcn = createCallbackFcn(app, @ProcedureDropDownValueChanged, true);
+            app.ProcedureDropDown.Items = {'Sweep Phase', 'Sweep DC Offset','Sweep Pump Width'};%, 'Vary Width', 'Vary Edge'};
+            app.ProcedureDropDown.Position = [116 714 146 22];
+            app.ProcedureDropDown.Value = 'Sweep Phase';
 
             % Create EditSettingsButton
             app.EditSettingsButton = uibutton(app.PumpProbeTab, 'push');
             app.EditSettingsButton.ButtonPushedFcn = createCallbackFcn(app, @EditSettingsButtonPushed, true);
-            app.EditSettingsButton.Position = [248 714 59 22];
+            app.EditSettingsButton.Position = [267 714 40 22];
             app.EditSettingsButton.Text = 'Edit';
 
             % Create SignalAxes
@@ -1978,13 +2012,13 @@ classdef PumpProbe < matlab.apps.AppBase
         function app = PumpProbe
 
             % Create UIFigure and components
-            createComponents(app)
+            createComponents(app);
 
             % Register the app with App Designer
-            registerApp(app, app.UIFigure)
+            registerApp(app, app.UIFigure);
 
             % Execute the startup function
-            runStartupFcn(app, @startupFcn)
+            runStartupFcn(app, @startupFcn);
 
             if nargout == 0
                 clear app
