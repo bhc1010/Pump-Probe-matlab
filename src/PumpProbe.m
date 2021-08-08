@@ -255,8 +255,14 @@ classdef PumpProbe < matlab.apps.AppBase
         end
         
         function setLIPlot(app, x, y)
-            cla(app.SignalAxes, 'reset'); % reset Signal plot
+            if ~app.OverlayPlotsCheckBox.Value
+                cla(app.SignalAxes, 'reset'); % reset Signal plot
+                hold(app.SignalAxes, 'off')
+            else
+                hold(app.SignalAxes, 'off')
+            end
             if ~app.DisablePlottingCheckBox.Value
+                hold(app.SignalAxes, '')
                 app.SignalPlot = plot(app.SignalAxes, x(1), y(1),'.-','MarkerSize',13,'LineWidth',0.5,'XDataSource','deltat','YDataSource','data','Color',[0.4 0.1 1]);
                 grid(app.SignalAxes, 'on');
             end
@@ -300,8 +306,8 @@ classdef PumpProbe < matlab.apps.AppBase
                     data(i) = x;
                 catch e 
                     Log(app, 'Error reading data. LockIn overloading?');
-                    data(i) = [];
-                    deltat(i) = [];
+                    % data(i) = [];
+                    % deltat(i) = [];
                 end
                 if ~app.DisablePlottingCheckBox.Value
                     set(app.SignalPlot, "XData", deltat(1:i), "YData", data(1:i));
@@ -324,7 +330,7 @@ classdef PumpProbe < matlab.apps.AppBase
                 % Send new waveform
                 prTemp = createPulse(app, deltaW(i), app.probeEdge, app.probeSpan + deltaW(end)); %creates the probe Arb
                 sendArbCh(app, prTemp, probeAmplitude, 1e9, 'wpr', 2) % channel 2
-                pause(1);
+                pause(2);
                 c = sprintf('SOURce2:PHASe:ARB %g', deltaW(i));
                 fprintf(v, c);
                 fprintf(v,'*WAI');
@@ -333,8 +339,8 @@ classdef PumpProbe < matlab.apps.AppBase
                     data(i) = x;
                 catch e 
                     Log(app, e.message);
-                    data(i) = [];
-                    deltaW(i) = [];
+                    % data(i) = [];
+                    % deltaW(i) = [];
                 end
                 if ~app.DisablePlottingCheckBox.Value
                     set(app.SignalPlot, "XData", deltaW(1:i), "YData", data(1:i));
@@ -352,42 +358,15 @@ classdef PumpProbe < matlab.apps.AppBase
             fprintf(v, 'OUTPUT1 ON');
             switch app.ProcedureDropDown.Value
                 case 'Sweep Phase'
+                    Log(app, 'Starting Sweep Phase Procedure')
                     [data, deltat] = modulatePhase(app, v, t, nbs, probeSpan);
                 case 'Sweep DC Offset'
                     Log(app, 'PLEASE SETUP IV')
                 case 'Sweep Pump Width'
+                    Log(app, 'Starting Sweep Pump Width Procedure')
                     [data, deltat] = modulateWidth(app, v, t, nbs, probeSpan);
             end
             fprintf(v, 'OUTPUT1 OFF');
-
-            %---------------------------------------------
-            % Data acquisition
-            %---------------------------------------------
-            % setLIPlot(app);
-            % data=zeros(1,nbs); % initialize values
-            % deltat=zeros(1,nbs);
-            % for i=1:nbs
-            %     deltat(i) = deltaRange(i)/360*probeSpan*1e9; %time label for Plot
-            %     c = sprintf('SOURce1:PHASe:ARB %g',deltaRange(i));
-            %     fprintf(v, c);
-            %     fprintf(v,'*WAI');
-            %     x = parseLI(app);
-            %     try 
-            %         data(i) = x;
-            %     catch e 
-            %         Log(app, e.message);
-            %         deltat(i) = [];
-            %     end
-            %     if ~app.DisablePlottingCheckBox.Value
-            %         set(app.SignalPlot, "XData", deltat(1:i), "YData", data(1:i));
-            %     end
-            %     pause(0.00001);
-            % end
-            % if ~app.DisablePlottingCheckBox.Value
-            %     set(app.SignalAxes, "XLim", [deltat(1) deltat(end)]);
-            % end
-            % hold(app.SignalAxes, 'off');
-            % beep
         end
         %------------------------------------------------------------------------------------------------
         
@@ -398,12 +377,12 @@ classdef PumpProbe < matlab.apps.AppBase
             minRiseTime = 4e-9; %4ns is the smallest rise time
             minPulseWidth = 4e-9; %5ns is the minimal pulse width
             samplerate=1e9;%hardcoded sample rate, going for max value 1GSa/s at the moment
-            timeIncrement = 1/samplerate; %time step size
+            % timeIncrement = 1/samplerate; %time step size
             minArbLength = 32; %minimal length of ARB waveform
-            risingEdge = linspace(0,1,max(round(minRiseTime/timeIncrement),round(risetime/timeIncrement))); %linear rise, 
+            risingEdge = linspace(0,1,max(round(minRiseTime*samplerate),round(risetime*samplerate))); %linear rise, 
             fallingEdge = fliplr(risingEdge); %create falling edge pulse, just mirrow of rising
             if width>minPulseWidth
-                pulse = [risingEdge ones(1,max(round(minPulseWidth/timeIncrement),round(width/timeIncrement)-length(risingEdge))) fallingEdge];
+                pulse = [risingEdge ones(1,max(round(minPulseWidth*samplerate), round(width*samplerate)-length(risingEdge))) fallingEdge];
             else
                 Log(app, 'Pulse generated with 1ns width')
                 pulse = [risingEdge fallingEdge];
@@ -604,9 +583,6 @@ classdef PumpProbe < matlab.apps.AppBase
                 tau = timeDependent(1:ref) - flip(background);
                 deltat = data(2, ref:2*ref-1);
             end
-            % if min(tau) < 0
-            %     tau = tau + abs(min(tau)) + 1e-6;
-            % end
             I = tau > app.VoltageToleranceKnob.Value;
             tau(I) = [];
             deltat(I) = [];
@@ -615,7 +591,6 @@ classdef PumpProbe < matlab.apps.AppBase
 
         % GUI functions
         % Ben Campbell
-
         function redrawFitAxes(app)
             if strcmp(app.PlotDropDown.Value, 'Probe Voltage Data')
                 data = app.DataSelect.Value{1};
@@ -708,7 +683,6 @@ classdef PumpProbe < matlab.apps.AppBase
             end
         end
 
-        % TAG
         function name = getConfigName(app)
             ppA = app.PumpAmplitudeEditField.Value;
             ppE = app.PumpEdgeEditField.Value;
@@ -841,7 +815,7 @@ classdef PumpProbe < matlab.apps.AppBase
             app.AquireDataButton.Enable = false;
             app.ResetButton.Enable = false;
             app.SaveDataButton.Enable = false;
-            app.PumpProbeLog.Value = '';
+            % app.PumpProbeLog.Value = '';
             % If not connected to Lock-In or AWG, then connect to both
             if ~app.connected
                 Log(app, 'Connecting to Lock-In via IP');
@@ -917,6 +891,9 @@ classdef PumpProbe < matlab.apps.AppBase
                     app.pvdLimits(end+1, :) = [data(2,1) data(2, end)];
                     app.fdLimits(end+1, :) = [0 tau(2, end)];
                     app.DataSelect.ItemsData{end+1} = {data; tau; length(app.DataSelect.Items)};
+                    % Enable data fitting tools
+                    app.AxesControlsPanel.Enable = 'on';
+                    app.FitDataPanel.Enable = 'on';         
                 end
             end
             if app.AutomaticExportCheckBox.Value;
