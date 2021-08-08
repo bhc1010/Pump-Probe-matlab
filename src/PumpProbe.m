@@ -178,7 +178,7 @@ classdef PumpProbe < matlab.apps.AppBase
             pause(0.2)
             fprintf(t, 'VMODE 1'); % A input only
             pause(0.2)
-            fprintf(t, 'SEN 19'); % sensitivity 2 mV
+            fprintf(t, 'SEN 20'); % sensitivity 5 mV
             pause(0.2)
             % fprintf(t, 'AS'); % auto-sensitivity
             fprintf(t, 'ACGAIN 5'); % set gain, 6 = 36 dB. dB = 6 * n
