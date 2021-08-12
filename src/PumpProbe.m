@@ -1663,7 +1663,7 @@ classdef PumpProbe < matlab.apps.AppBase
         end
         
         function LL_upPushed(app, event)
-            % unit = parseUnits(app, app.xaxisDropDown.Items{find()})
+            disp((get(app.FitAxes, 'XTick')))
             newll = app.LeftLimitEditField.Value + 1;
             if newll < app.RightLimitEditField.Value
                 app.LeftLimitEditField.Value = newll;
@@ -1885,13 +1885,6 @@ classdef PumpProbe < matlab.apps.AppBase
             app.LockInFreqScale.Position = [200 105 52 22];
             app.LockInFreqScale.Value = 1;
 
-            % Create LockInFreqScale
-            % app.LockInFreqScale = uidropdown(app.LockinPanel);
-            % app.LockInFreqScale.Items = {'Hz', 'MHz'};
-            % app.LockInFreqScale.ItemsData = {'1', '1e6'};
-            % app.LockInFreqScale.Position = [200 105 52 22];
-            % app.LockInFreqScale.Value = '1';
-
             % Create SensitivityDropDownLabel
             app.SensitivityDropDownLabel = uilabel(app.LockinPanel);
             app.SensitivityDropDownLabel.HorizontalAlignment = 'right';
@@ -1915,44 +1908,6 @@ classdef PumpProbe < matlab.apps.AppBase
             app.LockinIPEditField = uieditfield(app.LockinPanel, 'text');
             app.LockinIPEditField.Position = [122 10 130 22];
             app.LockinIPEditField.Value = '169.254.11.17';
-
-            % % Create LockinPanel
-            % app.LockinPanel = uipanel(app.PumpProbeTab);
-            % app.LockinPanel.Title = 'Lock-in';
-            % app.LockinPanel.Position = [48 247 261 105];
-
-            % % Create LockinFrequencyEditFieldLabel
-            % app.LockinFrequencyEditFieldLabel = uilabel(app.LockinPanel);
-            % app.LockinFrequencyEditFieldLabel.HorizontalAlignment = 'right';
-            % app.LockinFrequencyEditFieldLabel.Position = [12 47 104 22];
-            % app.LockinFrequencyEditFieldLabel.Text = 'Lock-in Frequency';
-
-            % % Create LockinFrequencyEditField
-            % app.LockinFrequencyEditField = uieditfield(app.LockinPanel, 'numeric');
-            % app.LockinFrequencyEditField.Position = [121 47 74 22];
-            % app.LockinFrequencyEditField.Value = 1007;
-
-            % % Create SamplesEditFieldLabel
-            % app.SamplesEditFieldLabel = uilabel(app.LockinPanel);
-            % app.SamplesEditFieldLabel.HorizontalAlignment = 'right';
-            % app.SamplesEditFieldLabel.Position = [59 15 52 22];
-            % app.SamplesEditFieldLabel.Text = 'Samples';
-
-            % % Create SamplesEditField
-            % app.SamplesEditField = uieditfield(app.LockinPanel, 'numeric');
-            % app.SamplesEditField.Position = [121 14 75 22];
-            % app.SamplesEditField.Value = 2000;
-
-            % % Create LockinIPEditFieldLabel
-            % app.LockinIPEditFieldLabel = uilabel(app.PumpProbeTab);
-            % app.LockinIPEditFieldLabel.HorizontalAlignment = 'right';
-            % app.LockinIPEditFieldLabel.Position = [46 207 62 22];
-            % app.LockinIPEditFieldLabel.Text = 'Lock-in IP:';
-
-            % % Create LockinIPEditField
-            % app.LockinIPEditField = uieditfield(app.PumpProbeTab, 'text');
-            % app.LockinIPEditField.Position = [123 207 186 22];
-            % app.LockinIPEditField.Value = '169.254.11.17';
 
             % Create PumpProbeLog
             app.PumpProbeLog = uitextarea(app.PumpProbeTab);
@@ -2419,53 +2374,6 @@ classdef PumpProbe < matlab.apps.AppBase
             app.yaxisDropDown.ItemsData = [1e-3, 1, 1e3];
             app.yaxisDropDown.Position = [418 79 64 22];
             app.yaxisDropDown.Value = 1;
-
-
-%             % Create ReflectionPointKnobLabel
-%             app.ReflectionPointKnobLabel = uilabel(app.AxesControlsPanel);
-%             app.ReflectionPointKnobLabel.HorizontalAlignment = 'center';
-%             app.ReflectionPointKnobLabel.Position = [46 76 89 25];
-%             app.ReflectionPointKnobLabel.Text = {'Tune'; 'Reflection Point'};
-            
-%             % Create ReflectionPointKnob
-%             app.ReflectionPointKnob = uiknob(app.AxesControlsPanel, 'continuous');
-%             app.ReflectionPointKnob.ValueChangingFcn = createCallbackFcn(app, @ReflectionPointKnobValueChanging, true);
-            % app.ReflectionPointKnob.ValueChangedFcn = createCallbackFcn(app, @ReflectionPointKnobValueChanged, true);
-%             app.ReflectionPointKnob.Position = [51 127 81 81];
-%             app.ReflectionPointKnob.Limits = [-1 1];
-%             app.ReflectionPointKnob.Value = 0;
-%             app.ReflectionPointKnob.MajorTicks = linspace(-1, 1, 5);
-%             app.ReflectionPointKnob.MajorTickLabels = arrayfun(@num2str, -1:0.5:1, 'UniformOutput', false);
-%             app.ReflectionPointKnob.Tooltip = {'Tunes the point of reflection on the probe voltage data.'};
-            
-%             % Create YZeroReferenceKnobLabel
-%             app.ZeroReferenceKnobLabel = uilabel(app.AxesControlsPanel);
-%             app.ZeroReferenceKnobLabel.HorizontalAlignment = 'center';
-%             app.ZeroReferenceKnobLabel.Position = [200 76 105 25];
-%             app.ZeroReferenceKnobLabel.Text = {'Adjust Zero'; 'Reference'};
-            
-%             % Create YZeroReferenceKnob
-%             app.ZeroReferenceKnob = uiknob(app.AxesControlsPanel, 'continuous');
-%             app.ZeroReferenceKnob.ValueChangingFcn = createCallbackFcn(app, @ZeroReferenceKnobValueChanging, true);
-            % app.ZeroReferenceKnob.ValueChangedFcn  = createCallbackFcn(app, @ZeroReferenceKnobValueChanged, true);
-%             app.ZeroReferenceKnob.Position = [210 130 81 81];
-%             app.ZeroReferenceKnob.Limits = [0 1];
-% %             app.ZeroReferenceKnob.Value = 1;
-% %             app.ZeroReferenceKnob.MajorTicks = linspace(0, 1, 5);
-% %             app.ZeroReferenceKnob.MajorTickLabels = arrayfun(@num2str, -1:0.5:1, 'UniformOutput', false);
-%             app.ZeroReferenceKnob.Tooltip = {'Adjusts the y = 0 reference line during fitting. '};
-            
-            % % Create FlipDataButton
-            % app.FlipDataButton = uibutton(app.AxesControlsPanel, 'push');
-            % app.FlipDataButton.ButtonPushedFcn = createCallbackFcn(app, @FlipDataButtonPushed, true);
-            % app.FlipDataButton.Position = [21 14 138 43];
-            % app.FlipDataButton.Text = 'Flip Data';
-            
-            % % Create ResetViewButton
-            % app.ResetViewButton = uibutton(app.AxesControlsPanel, 'push');
-            app.ResetViewButton.ButtonPushedFcn = createCallbackFcn(app, @ResetViewButtonPushed, true);
-            % app.ResetViewButton.Position = [182 14 137 43];
-            % app.ResetViewButton.Text = 'Reset View';
             
             % Create AxesLimitsPanelLabel
             app.AxesLimitsPanelLabel = uilabel(app.AxesControlsPanel);
@@ -2478,59 +2386,6 @@ classdef PumpProbe < matlab.apps.AppBase
             app.AxesLimitsPanel.TitlePosition = 'centertop';
             app.AxesLimitsPanel.Position = [370 170 318 40];
             app.AxesLimitsPanel.BorderType = 'none';
-            
-            % % Create ReflectionLineSwitchLabel
-            % app.ReflectionLineSwitchLabel = uilabel(app.AxesControlsPanel);
-            % app.ReflectionLineSwitchLabel.HorizontalAlignment = 'center';
-            % app.ReflectionLineSwitchLabel.Position = [368 31 59 26];
-            % app.ReflectionLineSwitchLabel.Text = {'Reflection'; 'Line'};
-            
-            % % Create ReflectionLineSwitch
-            % app.ReflectionLineSwitch = uiswitch(app.AxesControlsPanel, 'slider');
-            % app.ReflectionLineSwitch.ValueChangedFcn = createCallbackFcn(app, @ReflectionLineSwitchValueChanged, true);
-            % app.ReflectionLineSwitch.Orientation = 'vertical';
-            % app.ReflectionLineSwitch.Position = [387 84 20 45];
-            % app.ReflectionLineSwitch.ItemsData = [0, 1];
-            
-            % % Create ShowFitSwitchLabel
-            % app.ShowFitSwitchLabel = uilabel(app.AxesControlsPanel);
-            % app.ShowFitSwitchLabel.HorizontalAlignment = 'center';
-            % app.ShowFitSwitchLabel.Position = [466 28 48 30];
-            % app.ShowFitSwitchLabel.Text = {'Show'; 'Fit'};
-            
-            % % Create ShowFitSwitch
-            % app.ShowFitSwitch = uiswitch(app.AxesControlsPanel, 'slider');
-            % app.ShowFitSwitch.ValueChangedFcn = createCallbackFcn(app, @ShowFitSwitchValueChanged, true);
-            % app.ShowFitSwitch.Items = {'Off', 'On'};
-            % app.ShowFitSwitch.Orientation = 'vertical';
-            % app.ShowFitSwitch.Position = [480 85 20 45];
-            % app.ShowFitSwitch.Value = 'Off';
-            
-            % % Create YZeroReferenceLineSwitchLabel
-            % app.ZeroReferenceLineSwitchLabel = uilabel(app.AxesControlsPanel);
-            % app.ZeroReferenceLineSwitchLabel.HorizontalAlignment = 'center';
-            % app.ZeroReferenceLineSwitchLabel.Position = [548 28 65 30];
-            % app.ZeroReferenceLineSwitchLabel.Text = {'Zero'; 'Reference'};
-            
-            % % Create YZeroReferenceLineSwitch
-            % app.ZeroReferenceLineSwitch = uiswitch(app.AxesControlsPanel, 'slider');
-            % app.ZeroReferenceLineSwitch.ValueChangedFcn = createCallbackFcn(app, @ZeroReferenceLineSwitchValueChanged, true);
-            % app.ZeroReferenceLineSwitch.ItemsData = [0, 1];
-            % app.ZeroReferenceLineSwitch.Orientation = 'vertical';
-            % app.ZeroReferenceLineSwitch.Position = [572 83 20 45];
-            
-            % % Create Switch2_4Label
-            % app.Switch2_4Label = uilabel(app.AxesControlsPanel);
-            % app.Switch2_4Label.HorizontalAlignment = 'center';
-            % app.Switch2_4Label.Position = [639 20 48 22];
-            % app.Switch2_4Label.Text = 'Switch2';
-            
-            % % Create Switch2_4
-            % app.Switch2_4 = uiswitch(app.AxesControlsPanel, 'slider');
-            % app.Switch2_4.Items = {'Dont', 'Do'};
-            % app.Switch2_4.Orientation = 'vertical';
-            % app.Switch2_4.Position = [653 82 20 45];
-            % app.Switch2_4.Value = 'Dont';
             
             % Create ContextMenu
             app.ContextMenu = uicontextmenu(app.UIFigure);
